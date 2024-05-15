@@ -602,21 +602,20 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
   };
 
   const updateTabState = (value: string) => {
-      setCurrentAlert(currentAlertData => {
-        const dashboardState = currentAlertData?.extra?.dashboard;
-        const extra = {
-          dashboard: {
-            ...dashboardState,
-            activeTabs: [value],
-          },
-        };
-        return {
-          ...currentAlertData,
-          extra,
-        };
-      });
-    };
-
+    setCurrentAlert(currentAlertData => {
+      const dashboardState = currentAlertData?.extra?.dashboard;
+      const extra = {
+        dashboard: {
+          ...dashboardState,
+          activeTabs: [value],
+        },
+      };
+      return {
+        ...currentAlertData,
+        extra,
+      };
+    });
+  };
 
   // Alert fetch logic
   const {
@@ -671,6 +670,7 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
       ),
       recipients,
       report_format: reportFormat || DEFAULT_NOTIFICATION_FORMAT,
+      extra: currentAlert?.extra,
     };
 
     if (data.recipients && !data.recipients.length) {
@@ -800,7 +800,7 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
       },
     [],
   );
-  
+
   const dashboard = currentAlert?.dashboard;
   useEffect(() => {
     if (!tabsEnabled) return;
@@ -809,7 +809,7 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
       SupersetClient.get({
         endpoint: `/api/v1/dashboard/${dashboard.value}/tabs`,
       }).then(response => {
-        const tabs = response.json.result;
+        const tabs = response.json.result.tab_tree;
         setTabOptions(tabs);
       });
     }
@@ -981,7 +981,7 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
     if (tabsEnabled) {
       setTabOptions([]);
       updateTabState('');
-
+    };
   };
 
   const onChartChange = (chart: SelectValue) => {
