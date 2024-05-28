@@ -54,6 +54,7 @@ class CreateDashboardPermalinkCommand(BaseDashboardPermalinkCommand):
                 "dashboardId": str(dashboard.uuid),
                 "state": self.state,
             }
+            logger.info(value)
             user_id = get_user_id()
             key = UpsertKeyValueCommand(
                 resource=self.resource,

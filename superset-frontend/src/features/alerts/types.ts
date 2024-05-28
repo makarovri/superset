@@ -71,6 +71,7 @@ export type MetaObject = {
 export type DashboardState = {
   activeTabs?: Array<string>;
   dataMask?: Object;
+  anchor?: String;
 };
 
 export type Extra = {

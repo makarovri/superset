@@ -103,7 +103,7 @@ const DEFAULT_NOTIFICATION_METHODS: NotificationMethodOption[] = ['Email'];
 const DEFAULT_NOTIFICATION_FORMAT = 'PNG';
 const DEFAULT_EXTRA_DASHBOARD_OPTIONS: Extra = {
   dashboard: {
-    activeTabs: [],
+    anchor: '',
   },
 };
 
@@ -601,13 +601,13 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
     setNotificationAddState('active');
   };
 
-  const updateTabState = (value: string) => {
+  const updateAnchorState = (value: string) => {
     setCurrentAlert(currentAlertData => {
       const dashboardState = currentAlertData?.extra?.dashboard;
       const extra = {
         dashboard: {
           ...dashboardState,
-          activeTabs: [value],
+          anchor: value,
         },
       };
       return {
@@ -678,7 +678,6 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
     }
 
     data.context_markdown = 'string';
-
     if (isEditMode) {
       // Edit
       if (currentAlert?.id) {
@@ -980,7 +979,7 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
     updateAlertState('chart', null);
     if (tabsEnabled) {
       setTabOptions([]);
-      updateTabState('');
+      updateAnchorState('');
     };
   };
 
@@ -1654,8 +1653,8 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
                 <TreeSelect
                   disabled={tabOptions?.length === 0}
                   treeData={tabOptions}
-                  value={currentAlert?.extra?.dashboard?.activeTabs}
-                  onSelect={value => updateTabState(value)}
+                  value={currentAlert?.extra?.dashboard?.anchor}
+                  onSelect={value => updateAnchorState(value)}
                   style={{ width: '100%' }}
                   placeholder={t('Select a tab')}
                 />
