@@ -14,29 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-import logging
-
-from flask_appbuilder.security.sqla.models import User
-
-from superset.daos.base import BaseDAO
-from superset.extensions import db
-from superset.models.user_attributes import UserAttribute
-
-logger = logging.getLogger(__name__)
+from astroid import nodes
+from pylint.checkers import BaseChecker
+from pylint.lint import PyLinter
 
 
-class UserDAO(BaseDAO[User]):
-    @staticmethod
-    def get_by_id(user_id: int) -> User:
-        return db.session.query(User).filter_by(id=user_id).one()
+class TransactionChecker(BaseChecker):
+    name = "consider-using-transaction"
+    msgs = {
+        "W0001": (
+            'Consider using the @transaction decorator when defining a "unit of work"',
+            "consider-using-transaction",
+            "Used when an explicit commit or rollback call is detected",
+        ),
+    }
 
-    @staticmethod
-    def set_avatar_url(user: User, url: str) -> None:
-        if user.extra_attributes:
-            user.extra_attributes[0].avatar_url = url
-        else:
-            attrs = UserAttribute(avatar_url=url, user_id=user.id)
-            user.extra_attributes = [attrs]
-            db.session.add(attrs)
+    def visit_call(self, node: nodes.Call) -> None:
+        if isinstance(node.func, nodes.Attribute):
+            if node.func.attrname in ("commit", "rollback"):
+                self.add_message("consider-using-transaction", node=node)
+
+
+def register(linter: PyLinter) -> None:
+    linter.register_checker(TransactionChecker(linter))
