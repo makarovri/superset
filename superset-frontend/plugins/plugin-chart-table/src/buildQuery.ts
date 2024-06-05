@@ -21,13 +21,20 @@ import {
   buildQueryContext,
   ensureIsArray,
   getMetricLabel,
+  getTimeOffset,
   isPhysicalColumn,
   QueryMode,
   QueryObject,
   removeDuplicates,
+  SimpleAdhocFilter,
 } from '@superset-ui/core';
 import { PostProcessingRule } from '@superset-ui/core/src/query/types/PostProcessing';
 import { BuildQuery } from '@superset-ui/core/src/chart/registries/ChartBuildQueryRegistrySingleton';
+import {
+  isTimeComparison,
+  timeCompareOperator,
+} from '@superset-ui/chart-controls';
+import { isEmpty } from 'lodash';
 import { TableChartFormData } from './types';
 import { updateExternalFormData } from './DataTable/utils/externalAPIs';
 
@@ -69,9 +76,33 @@ const buildQuery: BuildQuery<TableChartFormData> = (
     };
   }
 
+  const addComparisonPercentMetrics = (metrics: string[], suffixes: string[]) =>
+    metrics.reduce<string[]>((acc, metric) => {
+      const newMetrics = suffixes.map(suffix => `${metric}__${suffix}`);
+      return acc.concat([metric, ...newMetrics]);
+    }, []);
+
   return buildQueryContext(formDataCopy, baseQueryObject => {
     let { metrics, orderby = [], columns = [] } = baseQueryObject;
+    const { extras = {} } = baseQueryObject;
     let postProcessing: PostProcessingRule[] = [];
+    const TimeRangeFilters =
+      formData.adhoc_filters?.filter(
+        (filter: SimpleAdhocFilter) => filter.operator === 'TEMPORAL_RANGE',
+      ) || [];
+
+    const timeOffsets = ensureIsArray(
+      isTimeComparison(formData, baseQueryObject)
+        ? getTimeOffset(
+            TimeRangeFilters[0],
+            formData.time_compare,
+            formData.start_date_offset,
+          )
+        : [],
+    );
+
+    let temporalColumAdded = false;
+    let temporalColum = null;
 
     if (queryMode === QueryMode.Aggregate) {
       metrics = metrics || [];
@@ -85,8 +116,17 @@ const buildQuery: BuildQuery<TableChartFormData> = (
       }
       // add postprocessing for percent metrics only when in aggregation mode
       if (percentMetrics && percentMetrics.length > 0) {
+        const percentMetricsLabelsWithTimeComparison = isTimeComparison(
+          formData,
+          baseQueryObject,
+        )
+          ? addComparisonPercentMetrics(
+              percentMetrics.map(getMetricLabel),
+              timeOffsets,
+            )
+          : percentMetrics.map(getMetricLabel);
         const percentMetricLabels = removeDuplicates(
-          percentMetrics.map(getMetricLabel),
+          percentMetricsLabelsWithTimeComparison,
         );
         metrics = removeDuplicates(
           metrics.concat(percentMetrics),
@@ -102,23 +142,38 @@ const buildQuery: BuildQuery<TableChartFormData> = (
           },
         ];
       }
+      // Add the operator for the time comparison if some is selected
+      if (!isEmpty(timeOffsets)) {
+        postProcessing.push(timeCompareOperator(formData, baseQueryObject));
+      }
 
-      columns = columns.map(col => {
-        if (
+      const temporalColumnsLookup = formData?.temporal_columns_lookup;
+      // Filter out the column if needed and prepare the temporal column object
+
+      columns = columns.filter(col => {
+        const shouldBeAdded =
           isPhysicalColumn(col) &&
           time_grain_sqla &&
-          formData?.temporal_columns_lookup?.[col]
-        ) {
-          return {
+          temporalColumnsLookup?.[col];
+
+        if (shouldBeAdded && !temporalColumAdded) {
+          temporalColum = {
             timeGrain: time_grain_sqla,
             columnType: 'BASE_AXIS',
             sqlExpression: col,
             label: col,
             expressionType: 'SQL',
           } as AdhocColumn;
+          temporalColumAdded = true;
+          return false; // Do not include this in the output; it's added separately
         }
-        return col;
+        return true;
       });
+
+      // So we ensure the temporal column is added first
+      if (temporalColum) {
+        columns = [temporalColum, ...columns];
+      }
     }
 
     const moreProps: Partial<QueryObject> = {};
@@ -133,9 +188,11 @@ const buildQuery: BuildQuery<TableChartFormData> = (
     let queryObject = {
       ...baseQueryObject,
       columns,
+      extras: !isEmpty(timeOffsets) && !temporalColum ? {} : extras,
       orderby,
       metrics,
       post_processing: postProcessing,
+      time_offsets: timeOffsets,
       ...moreProps,
     };
 
@@ -169,6 +226,7 @@ const buildQuery: BuildQuery<TableChartFormData> = (
         row_limit: 0,
         row_offset: 0,
         post_processing: [],
+        extras: undefined, // we don't need time grain here
         order_desc: undefined, // we don't need orderby stuff here,
         orderby: undefined, // because this query will be used for get total aggregation.
       });
@@ -186,6 +244,7 @@ const buildQuery: BuildQuery<TableChartFormData> = (
         { ...queryObject },
         {
           ...queryObject,
+          time_offsets: [],
           row_limit: 0,
           row_offset: 0,
           post_processing: [],
