@@ -31,7 +31,6 @@ import {
 } from '../constants';
 import { getActiveFilters } from '../dashboard/util/activeDashboardFilters';
 import serializeActiveFilterValues from '../dashboard/util/serializeActiveFilterValues';
-import logger from 'packages/superset-ui-core/src/utils/logging';
 
 export type UrlParamType = 'string' | 'number' | 'boolean' | 'object' | 'rison';
 export type UrlParam = (typeof URL_PARAMS)[keyof typeof URL_PARAMS];
@@ -174,7 +173,6 @@ export function getDashboardPermalink({
   anchor?: string;
 }) {
   // only encode filter state if non-empty
-  logger.info(activeTabs)
   return getPermalink(`/api/v1/dashboard/${dashboardId}/permalink`, {
     urlParams: getDashboardUrlParams(),
     dataMask,

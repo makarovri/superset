@@ -63,6 +63,7 @@ import {
   ValidationObject,
   Sections,
   TabNode,
+  SelectValue,
 } from 'src/features/alerts/types';
 import { useSelector } from 'react-redux';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
@@ -79,11 +80,6 @@ const TEXT_BASED_VISUALIZATION_TYPES = [
   'table',
   'paired_ttest',
 ];
-
-type SelectValue = {
-  value: string;
-  label: string;
-};
 
 export interface AlertReportModalProps {
   addSuccessToast: (msg: string) => void;
@@ -980,7 +976,7 @@ const AlertReportModal: FunctionComponent<AlertReportModalProps> = ({
     if (tabsEnabled) {
       setTabOptions([]);
       updateAnchorState('');
-    };
+    }
   };
 
   const onChartChange = (chart: SelectValue) => {
