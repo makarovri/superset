@@ -36,7 +36,7 @@ from sqlalchemy.dialects.mysql import dialect
 from tests.integration_tests.test_app import app, login
 from superset.sql_parse import CtasMethod
 from superset import db, security_manager
-from superset.connectors.sqla.models import BaseDatasource, SqlaTable
+from superset.connectors.sqla.models import Dataset
 from superset.models import core as models
 from superset.models.slice import Slice
 from superset.models.core import Database
@@ -119,7 +119,7 @@ class SupersetTestCase(TestCase):
         return (db.session.query(func.max(model.id)).scalar() or 0) + 1
 
     @staticmethod
-    def get_birth_names_dataset() -> SqlaTable:
+    def get_birth_names_dataset() -> Dataset:
         return SupersetTestCase.get_table(name="birth_names")
 
     @staticmethod
@@ -251,8 +251,8 @@ class SupersetTestCase(TestCase):
         return user
 
     @staticmethod
-    def get_table_by_id(table_id: int) -> SqlaTable:
-        return db.session.query(SqlaTable).filter_by(id=table_id).one()
+    def get_table_by_id(table_id: int) -> Dataset:
+        return db.session.query(Dataset).filter_by(id=table_id).one()
 
     @staticmethod
     def is_module_installed(module_name):
@@ -280,11 +280,11 @@ class SupersetTestCase(TestCase):
     @staticmethod
     def get_table(
         name: str, database_id: Optional[int] = None, schema: Optional[str] = None
-    ) -> SqlaTable:
+    ) -> Dataset:
         schema = schema or get_example_default_schema()
 
         return (
-            db.session.query(SqlaTable)
+            db.session.query(Dataset)
             .filter_by(
                 database_id=database_id
                 or SupersetTestCase.get_database_by_name("examples").id,
@@ -306,7 +306,7 @@ class SupersetTestCase(TestCase):
             raise ValueError("Database doesn't exist")
 
     @staticmethod
-    def get_datasource_mock() -> BaseDatasource:
+    def get_datasource_mock() -> Dataset:
         datasource = MagicMock()
         results = Mock()
         results.query = Mock()
@@ -323,7 +323,7 @@ class SupersetTestCase(TestCase):
         datasource.database.perm = "mock_database_perm"
         datasource.schema_perm = "mock_schema_perm"
         datasource.perm = "mock_datasource_perm"
-        datasource.__class__ = SqlaTable
+        datasource.__class__ = Dataset
         datasource.database.db_engine_spec.mutate_expression_label = lambda x: x
         datasource.owners = MagicMock()
         datasource.id = 99999
@@ -592,12 +592,29 @@ class SupersetTestCase(TestCase):
 
 
 @contextmanager
-def db_insert_temp_object(obj: DeclarativeMeta):
-    """Insert a temporary object in database; delete when done."""
+def db_insert_temp_object(obj: DeclarativeMeta, unique_attr: Optional[str] = None):
+    """
+    Insert a temporary object in database; delete when done.
+    Optionally will look at a unique key, and pre-delete if the object exists already
+    """
     try:
+        if unique_attr and hasattr(obj, unique_attr):
+            unique_value = getattr(obj, unique_attr)
+            existing_obj = (
+                db.session.query(obj.__class__)
+                .filter_by(**{unique_attr: unique_value})
+                .first()
+            )
+            if existing_obj:
+                db.session.delete(existing_obj)
+                db.session.commit()
         db.session.add(obj)
         db.session.commit()
+
         yield obj
+    except Exception as e:
+        raise e
+
     finally:
         db.session.delete(obj)
         db.session.commit()
