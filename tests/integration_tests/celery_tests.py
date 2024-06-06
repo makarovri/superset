@@ -32,6 +32,7 @@ import pytest
 
 import flask  # noqa: F401
 from flask import current_app, has_app_context  # noqa: F401
+from sqlalchemy import text
 
 from superset import db, sql_lab
 from superset.common.db_query_status import QueryStatus
@@ -115,7 +116,8 @@ def drop_table_if_exists(table_name: str, table_type: CtasMethod) -> None:
     sql = f"DROP {table_type} IF EXISTS {table_name}"
     database = get_example_database()
     with database.get_sqla_engine() as engine:
-        engine.execute(sql)
+        with engine.connect() as connection:
+            connection.execute(text(sql))
 
 
 def quote_f(value: Optional[str]):
@@ -494,7 +496,8 @@ def test_in_app_context():
 
 
 def delete_tmp_view_or_table(name: str, db_object_type: str):
-    db.get_engine().execute(f"DROP {db_object_type} IF EXISTS {name}")
+    with db.get_engine().connect() as connection:
+        connection.execute(text(f"DROP {db_object_type} IF EXISTS {name}"))
 
 
 def wait_for_success(result):
