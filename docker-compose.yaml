@@ -28,7 +28,7 @@ x-superset-depends-on: &superset-depends-on
 x-superset-volumes:
   &superset-volumes # /app/pythonpath_docker will be appended to the PYTHONPATH in the final container
   - ./docker:/app/docker
-  - /opt/superset/superset_home:/app/superset_home
+  - superset_home:/app/superset_home
 
 services:
   redis:
@@ -36,7 +36,7 @@ services:
     container_name: superset_cache
     restart: unless-stopped
     volumes:
-      - /opt/superset/redis:/data
+      - redis:/data
 
   db:
     env_file:
@@ -48,7 +48,7 @@ services:
     container_name: superset_db
     restart: unless-stopped
     volumes:
-      - /opt/superset/postgresql:/var/lib/postgresql/data
+      - db_home:/var/lib/postgresql/data
       - ./docker/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
 
   superset:
